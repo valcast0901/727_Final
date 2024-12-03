@@ -1,0 +1,175 @@
+---
+title: "SURMETH 727 - Final"
+format: html
+editor: visual
+---
+
+```{r}
+library(xml2)
+library(rvest)
+library(tidyverse)
+library(xml2)
+library(rvest)
+library(jsonlite)
+library(robotstxt)
+library(RSocrata)
+library(httr)     
+library(dplyr)    
+library(xml2)     
+```
+
+## Scarped article headlines from WXYZ News 
+```{r}
+# Initialize an empty data frame to store headlines and page numbers
+all_headlines_df <- data.frame(Page = integer(), Headline = character(), stringsAsFactors = FALSE)
+
+# Loop through pages 1 to 20 (or more)
+for (page_num in 1:20) {
+  # Construct the URL for the current page
+  WXYZ_url <- read_html(paste0("https://www.wxyz.com/search?q=food%20quality&p=", page_num))
+  
+  # Scrape the headline nodes
+  WXYZ_nds <- html_nodes(WXYZ_url, xpath = '//*[contains(concat(" ", @class, " "), " ListItem-title ")]')
+  
+  # Extract the text from the headline nodes
+  WXYZ_names <- html_text(WXYZ_nds)
+  
+  # Clean the headlines by trimming whitespace
+  WXYZ_names_cleaned <- trimws(WXYZ_names)
+  
+  # Create a temporary data frame with the page number and headlines
+  temp_df <- data.frame(Page = rep(page_num, length(WXYZ_names_cleaned)), 
+                        Headline = WXYZ_names_cleaned, 
+                        stringsAsFactors = FALSE)
+  
+  # Append the data from this page to the all_headlines_df data frame
+  all_headlines_df <- rbind(all_headlines_df, temp_df)
+}
+
+
+head(all_headlines_df)
+```
+
+## Scarped apple food review from Amazon Fresh 
+```{r}
+# URL for Honeycrisp Apples reviews page
+apple_url <- "https://www.amazon.com/-/es/B000RGZMTQ-Manzana-Honeycrisp/dp/B000RGZMTQ/ref=cm_cr_arp_d_product_top?ie=UTF8#customerReviews"
+
+# Set up the User-Agent header to mimic a real browser
+user_agent <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+# Send the GET request with the User-Agent header
+apple_response <- GET(apple_url, add_headers("User-Agent" = user_agent))
+
+# Parse the HTML content of the page
+applepage_html <- content(apple_response, as = "text")
+apple_page <- read_html(applepage_html)
+
+# Scrape the reviews using the provided XPath
+apple_reviews <- html_nodes(apple_page, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]')
+
+# Extract the text from the review nodes
+areviews_text <- html_text(apple_reviews)
+
+# Clean the reviews text by removing leading/trailing spaces
+areviews_cleaned <- trimws(areviews_text)
+
+# Print the first few reviews
+head(areviews_cleaned)
+```
+## Scarped brocolli food review from Amazon Fresh 
+```{r}
+# # URL for Broccoli (Amazon Fresh) reviews page
+# broccoli_url <- "https://www.amazon.com/-/es/Brócoli-orgánico-1-cabeza/dp/B08731CTJS/ref=sr_1_5_f3_wg?almBrandId=QW1hem9uIEZyZXNo&crid=3LRSTTEYWTRPE&dib=eyJ2IjoiMSJ9.hA0phk1Gz0C_itgI2D-LRxl5Svd3oXq4xk_pk3t4iFXq8jmwF7w51Bsa21QyT5JEV_7auGx--H1Wpyepzu9Na3-9qR3TCsGyLXGIJgyM9CyHnfizgiPs46yJzMYsOOjyPZO4N5yYdGOzlgc6dBYAQtinRzB65tfMEdhltEkF_6FvbKOVVxJNFUqarvDTeDIO173SLhTRD61_8C8l-2nEjWGHAWN712zGY0lQoATJ-CQPIWcV4u47F4Za6crpCjO-h7JLXb3cLxzbVn_YyUaUxRlIPXdSlLGf5AGGVBwq-uo.UqUIW0iT7SOjaKc9YiJak-bwWz5EayzB9eaBSxMzu0E&dib_tag=se&fpw=alm&keywords=broccoli&qid=1733261779&s=amazonfresh&sprefix=broc%2Camazonfresh%2C101&sr=1-5#customerReviews"
+# 
+# # Set up the User-Agent header to mimic a real browser
+# user_agent <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+# 
+# # Send the GET request with the User-Agent header
+# broccoli_response <- GET(broccoli_url, add_headers("User-Agent" = user_agent))
+# 
+# # Parse the HTML content of the page
+# broccoli_html <- content(broccoli_response, as = "text")
+# broccoli_page <- read_html(broccoli_html)
+# 
+# # Scrape the reviews using the provided XPath
+# broccoli_reviews <- html_nodes(broccoli_page, xpath = '//*[(@id = "customer_review-R3H12R4170XS2J")]//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))] | //*[(@id = "customer_review-R2WEKL4YB9M7FJ")]//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]//*[(@id = "customer_review-R333DZM2UNYCR2")]//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]//*[(@id = "customer_review-R3F62I2O0KW4Y8")]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]//*[(@id = "customer_review-R2JFN5US0UK9L7")]//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]//*[(@id = "customer_review-REQ79L8MMEDU3")]//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]//*[(@id = "customer_review-R2Y0D1AQV5DE8")]//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]')
+# 
+# # Extract the text from the review nodes
+# broccoli_reviews_text <- html_text(broccoli_reviews)
+# 
+# # Clean the reviews text by removing leading/trailing spaces
+# broccoli_reviews_cleaned <- trimws(broccoli_reviews_text)
+# 
+# # Print the first few reviews
+# head(broccoli_reviews_cleaned, 5)
+```
+## Scarped rice food review from Amazon Fresh 
+```{r}
+# URL for Mahatma Organic Brown Rice reviews page
+rice_url <- "https://www.amazon.com/-/es/Happy-Belly-Jasmine-Arroz-libras/dp/B08B217JP5/ref=sr_1_5_f3_wg?__mk_es_US=ÅMÅŽÕÑ&almBrandId=QW1hem9uIEZyZXNo&crid=5KSEV5ZYVSDH&dib=eyJ2IjoiMSJ9.4ypW1pkYIfVh3k-P3DlAgWBWG_fANORjf9XxTZGbPvy7lDxHxaKvUrakyDZZAlnh9fCBYkI7UmIaZw4kq-GEAfaEzYdrAeDEemYD2HA6x23jU7bbc3d8s8OJUQYCO_jtsJs1Gm-5qwL9fyVRsU-PTFPK7YHADSmOrUwHu_OB-i3TIx5oe0pA3g2ytYJqF_LaoemEFrjf4tsi8ksqAJGLq049oMKO3q7Jn8tbhjCYnFzVHl1cb4INvZjtsaW1q8RSwNXg9lvro6mN39ggfSn5N72l8Iiej_7kESQJyb7tIBA.7UELBAr7Oqtsggo9Qowo4FJVgmxbWzxc3pfbVRd8D4w&dib_tag=se&fpw=alm&keywords=rice&qid=1733264752&s=amazonfresh&sprefix=rice%2Camazonfresh%2C185&sr=1-5"
+
+# Set up the User-Agent header to mimic a real browser
+user_agent <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+# Send the GET request with the User-Agent header
+rice_response <- GET(rice_url, add_headers("User-Agent" = user_agent))
+
+# Parse the HTML content of the page
+rice_html <- content(rice_response, as = "text")
+rice_page <- read_html(rice_html)
+
+# Scrape the reviews using the provided XPath
+rice_reviews <- html_nodes(rice_page, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]')
+
+# Extract the text from the review nodes
+rice_reviews_text <- html_text(rice_reviews)
+
+# Clean the reviews text by removing leading/trailing spaces
+rice_reviews_cleaned <- trimws(rice_reviews_text)
+
+# Print the first few reviews
+head(rice_reviews_cleaned)
+```
+
+```{r}
+# URL of the Amazon page
+egg_url <- "https://www.amazon.com/-/es/Marca-Amazon-blancos-grandes-unidades/dp/B07ZS7B3VM/ref=sr_1_1_f3_wg?__mk_es_US=ÅMÅŽÕÑ&almBrandId=QW1hem9uIEZyZXNo&crid=1VJ8LGWK9O3TW&dib=eyJ2IjoiMSJ9.3dUmNAqyJi1aqE4v9N--5dsFobRPqn2vOcfEMeFHou7IBB_yW_jCmn1YUYq41cwNo4YSN9D6tcSvGdfunCubBbPaULjynGSVI1ojUR04Rg2-57HSg_ViVVaQvqjOa0Zoym5xi0O3T9UgpCTO_fMycCR38L2jvIyagHZSRHgR176Bo88IRc-msDOuKfN_HMra6xaF2ZbdP77V2xwzrEVMsD_fXO_ZldipQLsZ3jgeVK9NBn9dyOhcbPMV6WxveHl8NGE9DAlBz1OQLO0lrY2I6qC6nb39n8N5eNawlt0Zz9A.-IIWVEe27EzqMKouXylsUCSFBrrYl3I-x4s4NBYpQpo&dib_tag=se&fpw=alm&keywords=eggs&qid=1733261892&s=amazonfresh&sprefix=eggs%2Camazonfresh%2C119&sr=1-1"
+
+# Set up the User-Agent header to mimic a real browser
+egguser_agent <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+# Send the GET request with the User-Agent header
+egg_response <- GET(egg_url, add_headers("User-Agent" = egguser_agent))
+
+# Parse the HTML content of the page
+egg_page_html <- content(egg_response, as = "text")
+egg_page <- read_html(egg_page_html)
+
+# Scrape the review titles using the provided XPath
+egg_review_titles <- html_nodes(egg_page, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]')
+
+# Extract the text of the review titles
+egg_review_titles_text <- html_text(egg_review_titles)
+
+# Clean the review titles text by trimming whitespace
+egg_review_titles_cleaned <- trimws(egg_review_titles_text)
+
+# Print the first few cleaned review titles
+head(egg_review_titles_cleaned)
+```
+
+
+
+
+
+
+
+```{r}
+,
+  ,
+  "",
+  "",
+  "https://www.amazon.com/-/es/Amazon-entera-lactosa-pasteurizada-líquidas/dp/B07DGS2C29/ref=sr_1_3_f3_wg?__mk_es_US=ÅMÅŽÕÑ&almBrandId=QW1hem9uIEZyZXNo&crid=18YISTQQYS2QK&dib=eyJ2IjoiMSJ9.iyNQ2IPc0esJclKDaQe_EpyJqBe46KhkbuSRVV_ZzW--XMZH9nPEi-yz9yhZh7WKQW19pHrCTSPWbgxXwSbKYAJEvNhexfYQC9XpJN8gCWgkuug98p0ELzAzXOnCRekfsEKBOQC7wEn4AwBST7ej6ekBbZ6vjCJ93El6Q1skfVH4H4nR0te6ARuW1siqvsuaH2kQoFjMh41D3VHyT-HW3oWlwOZTET9lxT6G5hSTpPHL2vMo3zayTpef4Cn0l5oX3zwypSjIfu1Fx2-8NeYdyZCrsBkP7i10B8MZLZWuCYA.1wmlKASMWqWF7U_CokmJeS_HtRLRF3KMlV3ZzNGmWVI&dib_tag=se&fpw=alm&keywords=milk+generic&qid=1733261947&s=amazonfresh&sprefix=milk+generic%2Camazonfresh%2C89&sr=1-3#customerReviews"
+```
+
