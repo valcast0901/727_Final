@@ -5,11 +5,7 @@ editor: visual
 ---
 
 ```{r}
-library(xml2)
 library(httr)
-library(rvest)
-library(tidyverse)
-library(xml2)
 library(rvest)
 library(jsonlite)
 library(robotstxt)
@@ -17,7 +13,8 @@ library(RSocrata)
 library(httr)     
 library(dplyr)    
 library(xml2)  
-library(RSelenium)
+library(tidyverse)
+library(tidytext)
 library(ggplot2)
 library(wordcloud)
 library(RColorBrewer)
@@ -26,26 +23,25 @@ library(RColorBrewer)
 # Scraped News articles
 ## Scarped article headlines from WXYZ News
 ```{r}
-all_headlines_df <- data.frame(Page = integer(), Headline = character(), stringsAsFactors = FALSE)
+all_headlines_df <- data.frame(Headline = character(), stringsAsFactors = FALSE)
 
-for (page_num in 1:10) {
+for (page_num in 1:100) {
   
-  WXYZ_url <- read_html(paste0("https://www.wxyz.com/search?q=food%20quality&p=", page_num))
+  url <- paste0("https://www.wxyz.com/search?q=food%20quality&p=", page_num)
   
-  WXYZ_nds <- html_nodes(WXYZ_url, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "ListItem-title", " " ))]')
+  page <- read_html(url)
   
-  WXYZ_names <- html_text(WXYZ_nds)
+  headlines <- page %>% 
+    html_nodes(xpath = "//*[contains(concat( ' ', @class, ' ' ), concat( ' ', 'ListItem-title', ' ' ))]") %>% 
+    html_text() %>% 
+    trimws()
   
-  WXYZ_names_cleaned <- trimws(WXYZ_names)
-
-  temp_df <- data.frame(Page = rep(page_num, length(WXYZ_names_cleaned)), 
-                        Headline = WXYZ_names_cleaned, 
-                        stringsAsFactors = FALSE)
+  temp_df <- data.frame(Headline = headlines, stringsAsFactors = FALSE)
   
   all_headlines_df <- rbind(all_headlines_df, temp_df)
 }
 
-head(all_headlines_df)
+head(all_headlines_df, 10)
 ```
 
 ## Scarped article headlines from NYT 
@@ -61,6 +57,17 @@ headlines <- page %>%
 nyt_data <- data.frame(Headline = headlines, stringsAsFactors = FALSE)
 
 head(nyt_data, 10)
+```
+
+## Combine consumer reviews into one tibble
+```{r}
+combined_rnewsarticle_df <- rbind(nyt_data, all_headlines_df)
+
+head(combined_rnewsarticle_df)
+
+combined_rnewsarticle_df <- as_tibble(combined_rnewsarticle_df)
+
+class(combined_rnewsarticle_df)
 ```
 
 # Consumer Reviews
@@ -104,173 +111,214 @@ broccoli_reviews_cleaned <- trimws(broccoli_reviews_text)
 broccoli_reviews_df <- data.frame(Product = rep("Broccoli", length(broccoli_reviews_cleaned)),
                                    Review = broccoli_reviews_cleaned,
                                    stringsAsFactors = FALSE)
-
 head(broccoli_reviews_df)
 ```
 
-## Scarped rice food review from Amazon Fresh
-```{r}
-# URL for Mahatma Organic Brown Rice (Amazon Fresh) reviews page
-rice_url <- "https://www.amazon.com/-/es/904351SU-Mahatma-Arroz-integral-orgánico/dp/B000JOQ57E/ref=sr_1_5_f3_wg?__mk_es_US=ÅMÅŽÕÑ&almBrandId=QW1hem9uIEZyZXNo&crid=1FZG50UHXXCYA&dib=eyJ2IjoiMSJ9.IeoIkqOsup1GRgSd6S5UmcD2lI6T0yN5famSAV6hNIgw-L4IrwtaxjyHaegsGKvDqEe4n8i8Lv-J1jY7E2zFnd7vCRzBoPXzRvZ7D4x_WV4k1vOE037vtvpyMU2k-CdJLMJNUEbHjXCDyDmjZdCRP1gWq2DjLlocYUHnXLR2-_r7OdQciC03DCbtC0Vqqt0CYif_X-9JLbaCdQP6G0icc8B0lcsk-uK3aZ5-T7KwdKGWCd5JtU9dehcZTMOazzMsdOcR-ac5Erlqydbiv7Gpthc9aWcnLNDs_LBXSxn2m5H7WXG0aMq8J7-s__iAEOwrn9TUQ7UBAMNLv69HogiJJEqSrhB4xzO4Xdxn7Qxnb-w.zx42NEDafChhqZzI7kkb1djyIxu3FzahAUPkhgQ4R2Q&dib_tag=se&fpw=alm&keywords=rice&qid=1733885644&s=amazonfresh&sprefix=rice%2Camazonfresh%2C170&sr=1-5&th=1"
-
-# Send the GET request (without User-Agent header here, you can add it back if needed)
-rice_response <- GET(rice_url)
-
-# Parse the HTML content of the page
-rice_html <- content(rice_response, as = "text")
-rice_page <- read_html(rice_html)
-
-# Scrape the reviews using the provided XPath
-rice_reviews <- html_nodes(rice_page, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]')
-
-# Extract the text from the review nodes
-rice_reviews_text <- html_text(rice_reviews)
-
-# Clean the reviews text by removing leading/trailing spaces
-rice_reviews_cleaned <- trimws(rice_reviews_text)
-
-# Combine the reviews into a dataset (data frame)
-rice_reviews_df <- data.frame(Product = rep("Mahatma Organic Brown Rice", length(rice_reviews_cleaned)),
-                              Review = rice_reviews_cleaned,
-                              stringsAsFactors = FALSE)
-
-# View the first few rows of the dataset
-head(rice_reviews_df)
-```
-
-```{r}
-# URL for Marca Amazon Eggs (Amazon Fresh) reviews page
-eggs_url <- "https://www.amazon.com/-/es/Docena-orgánicos-grandes-marrones-certificado/dp/B00M1QWODW/ref=sr_1_5_f3_wg?__mk_es_US=ÅMÅŽÕÑ&almBrandId=QW1hem9uIEZyZXNo&crid=3TWA5C6MPXP1H&dib=eyJ2IjoiMSJ9.3dUmNAqyJi1aqE4v9N--5Wmp10bfLf8uT0RMVau-0oH0csrxmvX1jmsvLMt8Uon5BVfxFOLQEvFXjePTHssdMBeCqFRs3e9vr9Na2lhWfI2lYsyOr-qZVyi17v6bKrKeym5xi0O3T9UgpCTO_fMycAurOrf5mTee9IXO9nQhyMAU5JXMSVo0b958S5fQ0L1yF967uK564r7mp0QKYVM5KSSQvm6ZGf9VAwO8TYUbZw7U4UR8PA4jdRs6WpS1YZROAwgMyR5hsGYpPkepgID6IrnKeTfHckyAWcwQvaaPnDwfI9uQA1W1Rz5cwMX3SsFXiKXakL06H9iAFOqQ00VeMQ38Stfvyt02tUGXycSfdC4.ClEobkIho1gK9VmfC5DROt-mlLNaDuM-PUHuFIaFOz4&dib_tag=se&fpw=alm&keywords=eggs&qid=1733889608&s=amazonfresh&sprefix=eggs%2Camazonfresh%2C85&sr=1-5"
-
-library(RCurl)
-
-# Fetch the HTML content using RCurl
-html_content <- getURL(eggs_url)
-
-# Parse the HTML content using rvest
-library(rvest)
-eggs_page <- read_html(html_content)
-
-# Scrape reviews using XPath and extract text
-eggs_reviews <- html_nodes(eggs_page, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]')
-eggs_reviews_text <- html_text(eggs_reviews)
-eggs_reviews_cleaned <- trimws(eggs_reviews_text)
-
-# Create a data frame
-eggs_reviews_df <- data.frame(Product = rep("Marca Amazon Eggs", length(eggs_reviews_cleaned)),
-                               Review = eggs_reviews_cleaned,
-                               stringsAsFactors = FALSE)
-
-# View the first few rows
-head(eggs_reviews_df)
-```
-
-```{r}
-milk_url <- "https://www.amazon.com/-/es/Amazon-entera-lactosa-pasteurizada-líquidas/dp/B07DGS2C29/ref=sr_1_3_f3_wg?__mk_es_US=ÅMÅŽÕÑ&almBrandId=QW1hem9uIEZyZXNo&crid=18YISTQQYS2QK&dib=eyJ2IjoiMSJ9.iyNQ2IPc0esJclKDaQe_EpyJqBe46KhkbuSRVV_ZzW--XMZH9nPEi-yz9yhZh7WKQW19pHrCTSPWbgxXwSbKYAJEvNhexfYQC9XpJN8gCWgkuug98p0ELzAzXOnCRekfsEKBOQC7wEn4AwBST7ej6ekBbZ6vjCJ93El6Q1skfVH4H4nR0te6ARuW1siqvsuaH2kQoFjMh41D3VHyT-HW3oWlwOZTET9lxT6G5hSTpPHL2vMo3zayTpef4Cn0l5oX3zwypSjIfu1Fx2-8NeYdyZCrsBkP7i10B8MZLZWuCYA.1wmlKASMWqWF7U_CokmJeS_HtRLRF3KMlV3ZzNGmWVI&dib_tag=se&fpw=alm&keywords=milk+generic&qid=1733261947&s=amazonfresh&sprefix=milk+generic%2Camazonfresh%2C89&sr=1-3#customerReviews"
-
-# Send the GET request with a User-Agent header (to simulate a real browser)
-user_agent <- "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-milk_response <- GET(milk_url, add_headers("User-Agent" = user_agent))
-
-# Parse the HTML content of the page
-milk_html <- content(milk_response, as = "text", encoding = "UTF-8")  # Ensure proper encoding
-milk_page <- read_html(milk_html)
-
-# Scrape the reviews using the provided XPath
-milk_reviews <- html_nodes(milk_page, xpath = '//*[contains(concat( " ", @class, " " ), concat( " ", "a-text-bold", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "cr-original-review-content", " " ))]')
-
-# Extract the text from the review nodes
-milk_reviews_text <- html_text(milk_reviews)
-
-# Clean the reviews text by removing leading/trailing spaces
-milk_reviews_cleaned <- trimws(milk_reviews_text)
-
-# Combine the reviews into a dataset (data frame)
-milk_reviews_df <- data.frame(Product = rep("Milk Generic", length(milk_reviews_cleaned)),
-                               Review = milk_reviews_cleaned,
-                               stringsAsFactors = FALSE)
-
-# View the first few rows of the dataset
-head(milk_reviews_df)
-```
-
-## Combine consumer reviews into one dataset
+## Combine consumer reviews into one tibble
 ```{r}
 combined_reviews_df <- rbind(broccoli_reviews_df, apple_reviews_df)
 
 head(combined_reviews_df)
+
+combined_reviews_df <- as_tibble(combined_reviews_df)
+
+class(combined_reviews_df)
 ```
 
 # Analysis
-## Total news headlines for both newspapers
+## Total news headlines for both newspapers based on website numbers
 ```{r}
-data <- data.frame(
-  Source = c("NYT Total", "WXYZ Total"),
-  Results = c(109566, 20573)
+Total_news_data <- data.frame(   
+  Source = c("NYT Total", "WXYZ Total"),   
+  Results = c(109566, 20573) 
 )
 
-print(data)
+print(Total_news_data)
+```
 
-ggplot(data, aes(x = Source, y = Results, fill = Source)) +
-  geom_bar(stat = "identity") +  
+# Content Analysis
+## Content Analysis for Headlines
+```{r}
+word_tibble <- combined_rnewsarticle_df %>%
+  select(Headline) %>%        
+  unnest_tokens(word, Headline)  
+
+head(word_tibble)
+
+word_tibble_no_stopwords <- word_tibble %>%
+  anti_join(stop_words)
+
+head(word_tibble_no_stopwords)
+
+word_counts <- word_tibble_no_stopwords %>%
+  count(word, sort = TRUE)
+
+head(word_counts, 20)
+```
+
+## Content Analysis for Consumer Reviews
+```{r}
+crword_tibble <- combined_reviews_df %>%
+  select(Review) %>%        
+  unnest_tokens(word, Review)  
+
+head(crword_tibble)
+
+crword_tibble_no_stopwords <- crword_tibble %>%
+  anti_join(stop_words)
+
+head(crword_tibble_no_stopwords)
+
+crword_counts <- crword_tibble_no_stopwords %>%
+  count(word, sort = TRUE)
+
+head(crword_counts, 20)
+```
+
+## Splitting words into three categories - taste, health, and safety
+```{r}
+taste_keywords <- c("fresh", "crispy", "delicious", "quality")
+health_keywords <- c("health", "recalled")
+safety_keywords <- c("fda", "coli", "listeria")
+
+taste_words <- word_tibble_no_stopwords %>% filter(word %in% taste_keywords)
+health_words <- word_tibble_no_stopwords %>% filter(word %in% health_keywords)
+safety_words <- word_tibble_no_stopwords %>% filter(word %in% safety_keywords)
+
+taste_words_cr <- crword_tibble_no_stopwords %>% filter(word %in% taste_keywords)
+health_words_cr <- crword_tibble_no_stopwords %>% filter(word %in% health_keywords)
+safety_words_cr <- crword_tibble_no_stopwords %>% filter(word %in% safety_keywords)
+
+combined_filtered_data <- bind_rows(
+  taste_words %>% mutate(Category = "Taste", Source = "News Articles"),
+  health_words %>% mutate(Category = "Health", Source = "News Articles"),
+  safety_words %>% mutate(Category = "Safety", Source = "News Articles"),
+  taste_words_cr %>% mutate(Category = "Taste", Source = "Consumer Reviews"),
+  health_words_cr %>% mutate(Category = "Health", Source = "Consumer Reviews"),
+  safety_words_cr %>% mutate(Category = "Safety", Source = "Consumer Reviews"))
+
+head(combined_filtered_data)
+
+combined_categories <- combined_filtered_data %>%
+  group_by(Category, word) %>%
+  summarise(Frequency = n(), .groups = 'drop')  
+
+head(combined_categories, 20)
+```
+
+## Visualization
+```{r}
+plot <- ggplot(word_counts %>% head(20), aes(x = reorder(word, n), y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +  
+  coord_flip() +  
   labs(
-    title = "Comparison of Search Results for 'Food Quality'",
-    x = "Source",
-    y = "Number of Results"
+    title = "Top 20 Most Common Words in Article Headlines",
+    x = "Word",
+    y = "Frequency"
   ) +
-  theme_minimal() +  
-  scale_fill_manual(values = c("skyblue", "orange"))  
+  theme_minimal()  
+ggsave("article_headline_wordcloud_plot.png", plot, width = 8, height = 6, dpi = 300)
+```
+
+```{r}
+plot1 <- ggplot(crword_counts %>% head(20), aes(x = reorder(word, n), y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +  
+  coord_flip() + 
+  labs(
+    title = "Top 20 Most Common Words in Consumer Reviews",
+    x = "Word",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+ggsave("consumer_review_wordcloud_plot.png", plot1, width = 8, height = 6, dpi = 300)
 ```
 
 
 ```{r}
-headline_counts <- data.frame(
-  Dataset = c("NYT Data", "All Headlines Data"),
-  Count = c(nrow(nyt_data), nrow(all_headlines_df))
+ui <- fluidPage(
+
+  titlePanel("Interactive Word Frequency Analysis"),
+
+  sidebarLayout(
+    sidebarPanel(
+
+      selectInput("category", "Select Category", 
+                  choices = c("Taste", "Health", "Safety"), selected = "Taste"),
+  
+      sliderInput("top_n", "Top N Words", 
+                  min = 1, max = 5, value = 10)
+    ),
+    
+    mainPanel(
+      plotlyOutput("bar_plot")
+    )
+  )
 )
 
-ggplot(headline_counts, aes(x = Dataset, y = Count, fill = Dataset)) +
-  geom_bar(stat = "identity", show.legend = FALSE) +
-  labs(title = "Headline Count in Two Datasets",
-       x = "Dataset",
-       y = "Number of Headlines") +
-  theme_minimal()
+server <- function(input, output) {
+  
+  filtered_data <- reactive({
+    combined_categories %>%
+      filter(Category == input$category) %>%
+      top_n(input$top_n, Frequency)  # Filter top N based on Frequency
+  })
+  
+  output$bar_plot <- renderPlotly({
+    data <- filtered_data()
+    
+    p <- ggplot(data, aes(x = reorder(word, Frequency), y = Frequency)) +
+      geom_bar(stat = "identity", fill = "skyblue") +
+      coord_flip() +  # Flip the bars for readability
+      labs(title = paste("Top", input$top_n, "Words in", input$category, "Category"),
+           x = "Word",
+           y = "Frequency") +
+      theme_minimal()
+    
+    ggplotly(p)  # Create an interactive plot
+  })
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+
+```{r}
+plot2 <- ggplot(combined_categories, aes(x = reorder(word, Frequency), y = Frequency, fill = Category)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "Word Frequency by Category (Taste, Health, Safety)",
+    x = "Word",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave("word_frequency_wordcloud_plot.png", plot2, width = 8, height = 6, dpi = 300)
 ```
 
 ```{r}
-keywords <- c("foodborne", "illness", "recall", "sick", "chronic disease", "safety", "outbreaks", "quality")
+combined_word_counts <- bind_rows(
+  word_counts %>% mutate(Source = "News Articles"),
+  crword_counts %>% mutate(Source = "Consumer Reviews")
+)
 
-# Filter rows containing any of the keywords in article_heading
-filtered_headlines <- all_headlines_df[grepl(paste(keywords, collapse = "|"), all_headlines_df$Headline, ignore.case = TRUE), ]
+combined_word_counts <- combined_word_counts %>%
+  group_by(word) %>%
+  summarise(Frequency = sum(n), .groups = 'drop')
 
-print(filtered_headlines)
+output_file <- "combined_wordcloud.png"
+
+png(output_file, width = 800, height = 800, res = 150)
+
+wordcloud(words = combined_word_counts$word,
+          freq = combined_word_counts$Frequency,
+          min.freq = 1,
+          scale = c(3, 0.5),
+          max.words = 40,
+          random.order = FALSE,
+          colors = brewer.pal(8, "Dark2"))
 ```
 
-```{r}
-# Load necessary libraries
-library(wordcloud)
-library(RColorBrewer)
 
-# Define the words and their frequencies
-words <- c("foodborne", "illness", "recall", "sick", "chronic disease", 
-           "safety", "outbreaks", "quality", "crisp", "delicious")
-freq <- c(15, 12, 10, 8, 6, 13, 7, 14, 5, 9)
 
-# Create a data frame from the words and their frequencies
-word_data <- data.frame(word = words, freq = freq)
-
-# Set the color palette (optional)
-colors <- brewer.pal(8, "Dark2")
-
-# Save the word cloud as a PNG file
-png("food_quality_wordcloud.png", width = 800, height = 600)  # Open PNG device
-wordcloud(words = word_data$word, 
-          freq = word_data$freq, 
-          min.freq = 1, 
-          scale = c(3, 0.5),         # Font size range (3 is largest, 0.5 is smallest)
-          colors = colors,           # Custom color palette
-          random.order = FALSE,      # Sort by frequency
-          rot.per = 0.25,            # Rotate some words
-          use.r.layout = FALSE)      # Non-rotated layout
-
-```
